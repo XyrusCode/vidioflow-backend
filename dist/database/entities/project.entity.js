@@ -9,11 +9,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Project = void 0;
+exports.Project = exports.ProjectStatus = void 0;
 const typeorm_1 = require("typeorm");
-const project_status_enum_1 = require("../../common/enums/project-status.enum");
-const automation_step_entity_1 = require("./automation-step.entity");
-const script_entity_1 = require("./script.entity");
+const user_entity_1 = require("./user.entity");
+const segment_entity_1 = require("./segment.entity");
+var ProjectStatus;
+(function (ProjectStatus) {
+    ProjectStatus["PENDING"] = "pending";
+    ProjectStatus["PROCESSING"] = "processing";
+    ProjectStatus["COMPLETED"] = "completed";
+    ProjectStatus["FAILED"] = "failed";
+})(ProjectStatus || (exports.ProjectStatus = ProjectStatus = {}));
 let Project = class Project {
 };
 exports.Project = Project;
@@ -22,47 +28,49 @@ __decorate([
     __metadata("design:type", String)
 ], Project.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
+    (0, typeorm_1.Column)({ type: 'uuid' }),
+    __metadata("design:type", String)
+], Project.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 255 }),
     __metadata("design:type", String)
 ], Project.prototype, "name", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Project.prototype, "description", void 0);
-__decorate([
-    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
-    __metadata("design:type", Date)
-], Project.prototype, "createdAt", void 0);
-__decorate([
-    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
-    __metadata("design:type", Date)
-], Project.prototype, "updatedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({
         type: 'enum',
-        enum: project_status_enum_1.ProjectStatus,
-        default: project_status_enum_1.ProjectStatus.PENDING,
+        enum: ProjectStatus,
+        default: ProjectStatus.PENDING,
     }),
     __metadata("design:type", String)
 ], Project.prototype, "status", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'final_video_url', type: 'varchar', length: 500, nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ length: 500, nullable: true }),
+    __metadata("design:type", Object)
 ], Project.prototype, "finalVideoUrl", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => automation_step_entity_1.AutomationStep, (step) => step.project, {
+    (0, typeorm_1.CreateDateColumn)(),
+    __metadata("design:type", Date)
+], Project.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)(),
+    __metadata("design:type", Date)
+], Project.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.projects, { onDelete: 'CASCADE' }),
+    (0, typeorm_1.JoinColumn)({ name: 'userId' }),
+    __metadata("design:type", user_entity_1.User)
+], Project.prototype, "user", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => segment_entity_1.Segment, (segment) => segment.project, {
         cascade: true,
-        eager: false,
+        eager: true,
     }),
     __metadata("design:type", Array)
-], Project.prototype, "steps", void 0);
-__decorate([
-    (0, typeorm_1.OneToOne)(() => script_entity_1.Script, (script) => script.project, {
-        cascade: true,
-        eager: false,
-    }),
-    __metadata("design:type", script_entity_1.Script)
-], Project.prototype, "script", void 0);
+], Project.prototype, "segments", void 0);
 exports.Project = Project = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], Project);

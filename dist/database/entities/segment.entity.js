@@ -9,36 +9,49 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Script = void 0;
+exports.Segment = void 0;
 const typeorm_1 = require("typeorm");
 const project_entity_1 = require("./project.entity");
-let Script = class Script {
+const project_action_entity_1 = require("./project-action.entity");
+let Segment = class Segment {
 };
-exports.Script = Script;
+exports.Segment = Segment;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
-], Script.prototype, "id", void 0);
+], Segment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'project_id', type: 'uuid', unique: true }),
+    (0, typeorm_1.Column)({ type: 'uuid' }),
     __metadata("design:type", String)
-], Script.prototype, "projectId", void 0);
+], Segment.prototype, "projectId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'text_content', type: 'text' }),
+    (0, typeorm_1.Column)({ type: 'int' }),
+    __metadata("design:type", Number)
+], Segment.prototype, "segmentOrder", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text' }),
     __metadata("design:type", String)
-], Script.prototype, "textContent", void 0);
+], Segment.prototype, "narratorText", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'voice_model', type: 'varchar', length: 100, default: 'en-US-AriaNeural' }),
+    (0, typeorm_1.Column)({ length: 100, default: 'en-US-AriaNeural' }),
     __metadata("design:type", String)
-], Script.prototype, "voiceModel", void 0);
+], Segment.prototype, "voiceModel", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => project_entity_1.Project, (project) => project.script, {
+    (0, typeorm_1.ManyToOne)(() => project_entity_1.Project, (project) => project.segments, {
         onDelete: 'CASCADE',
     }),
-    (0, typeorm_1.JoinColumn)({ name: 'project_id' }),
+    (0, typeorm_1.JoinColumn)({ name: 'projectId' }),
     __metadata("design:type", project_entity_1.Project)
-], Script.prototype, "project", void 0);
-exports.Script = Script = __decorate([
-    (0, typeorm_1.Entity)('scripts')
-], Script);
-//# sourceMappingURL=script.entity.js.map
+], Segment.prototype, "project", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => project_action_entity_1.ProjectAction, (action) => action.segment, {
+        cascade: true,
+        eager: true,
+    }),
+    __metadata("design:type", Array)
+], Segment.prototype, "actions", void 0);
+exports.Segment = Segment = __decorate([
+    (0, typeorm_1.Entity)('segments'),
+    (0, typeorm_1.Index)(['projectId', 'segmentOrder'])
+], Segment);
+//# sourceMappingURL=segment.entity.js.map

@@ -13,19 +13,15 @@ const projects_controller_1 = require("./projects.controller");
 const projects_service_1 = require("./projects.service");
 const generator_module_1 = require("../generator/generator.module");
 const project_entity_1 = require("../../database/entities/project.entity");
-const automation_step_entity_1 = require("../../database/entities/automation-step.entity");
-const script_entity_1 = require("../../database/entities/script.entity");
 let ProjectsModule = class ProjectsModule {
 };
 exports.ProjectsModule = ProjectsModule;
 exports.ProjectsModule = ProjectsModule = __decorate([
     (0, common_1.Module)({
-        imports: [
-            typeorm_1.TypeOrmModule.forFeature([project_entity_1.Project, automation_step_entity_1.AutomationStep, script_entity_1.Script]),
-            generator_module_1.GeneratorModule,
-        ],
+        imports: [typeorm_1.TypeOrmModule.forFeature([project_entity_1.Project]), generator_module_1.GeneratorModule],
         controllers: [projects_controller_1.ProjectsController],
         providers: [projects_service_1.ProjectsService],
+        exports: [projects_service_1.ProjectsService],
     })
 ], ProjectsModule);
 //# sourceMappingURL=projects.module.js.map

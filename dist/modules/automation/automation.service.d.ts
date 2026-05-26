@@ -1,19 +1,20 @@
-import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { AutomationStep } from '../../database/entities/automation-step.entity';
-import { Project } from '../../database/entities/project.entity';
-export interface AutomationResult {
+import { Segment } from '../../database/entities/segment.entity';
+export interface SegmentTiming {
+    segmentId: string;
+    startMs: number;
+    endMs: number;
+}
+export interface RecordResult {
     videoPath: string;
-    duration: number;
+    segmentTimings: SegmentTiming[];
 }
 export declare class AutomationService {
-    private readonly stepRepo;
-    private readonly projectRepo;
     private readonly configService;
     private readonly logger;
-    constructor(stepRepo: Repository<AutomationStep>, projectRepo: Repository<Project>, configService: ConfigService);
-    executeProjectAutomation(projectId: string): Promise<AutomationResult>;
-    private executeStep;
+    constructor(configService: ConfigService);
+    record(segments: Segment[]): Promise<RecordResult>;
+    private executeAction;
     private ensureDir;
-    private findLatestVideoFile;
+    private findLatestWebm;
 }

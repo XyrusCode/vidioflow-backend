@@ -1,7 +1,9 @@
 declare const _default: () => {
     port: number;
     nodeEnv: string;
+    jwtSecret: string;
     database: {
+        url: string | undefined;
         host: string;
         port: number;
         username: string;

@@ -8,70 +8,60 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var AutomationService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AutomationService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
 const config_1 = require("@nestjs/config");
 const playwright_1 = require("playwright");
 const fs = require("fs");
 const path = require("path");
-const automation_step_entity_1 = require("../../database/entities/automation-step.entity");
-const project_entity_1 = require("../../database/entities/project.entity");
-const action_type_enum_1 = require("../../common/enums/action-type.enum");
+const project_action_entity_1 = require("../../database/entities/project-action.entity");
 let AutomationService = AutomationService_1 = class AutomationService {
-    constructor(stepRepo, projectRepo, configService) {
-        this.stepRepo = stepRepo;
-        this.projectRepo = projectRepo;
+    constructor(configService) {
         this.configService = configService;
         this.logger = new common_1.Logger(AutomationService_1.name);
     }
-    async executeProjectAutomation(projectId) {
-        const project = await this.projectRepo.findOne({ where: { id: projectId } });
-        if (!project) {
-            throw new common_1.NotFoundException(`Project ${projectId} not found`);
-        }
-        const steps = await this.stepRepo.find({
-            where: { projectId },
-            order: { stepOrder: 'ASC' },
-        });
+    async record(segments) {
         const videoDir = this.configService.get('paths.video', '/tmp/videos');
         this.ensureDir(videoDir);
-        const videoPath = path.join(videoDir, `${projectId}.webm`);
         let browser = null;
         let context = null;
-        const startTime = Date.now();
         try {
             browser = await playwright_1.chromium.launch({
                 headless: true,
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
             });
             context = await browser.newContext({
-                viewport: { width: 1920, height: 1080 },
-                recordVideo: {
-                    dir: videoDir,
-                    size: { width: 1920, height: 1080 },
-                },
+                viewport: { width: 1280, height: 720 },
+                recordVideo: { dir: videoDir, size: { width: 1280, height: 720 } },
             });
             const page = await context.newPage();
-            for (const step of steps) {
-                await this.executeStep(page, step);
+            const sessionStart = Date.now();
+            const segmentTimings = [];
+            const sortedSegments = [...segments].sort((a, b) => a.segmentOrder - b.segmentOrder);
+            for (const segment of sortedSegments) {
+                const segStart = Date.now() - sessionStart;
+                const sortedActions = [...(segment.actions ?? [])].sort((a, b) => a.actionOrder - b.actionOrder);
+                for (const action of sortedActions) {
+                    await this.executeAction(page, action);
+                }
+                segmentTimings.push({
+                    segmentId: segment.id,
+                    startMs: segStart,
+                    endMs: Date.now() - sessionStart,
+                });
             }
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(800);
+            const rawVideoPath = await page.video()?.path();
             await context.close();
             await browser.close();
-            const duration = (Date.now() - startTime) / 1000;
-            const recordedFile = this.findLatestVideoFile(videoDir, projectId);
-            this.logger.log(`Automation complete for project ${projectId} — video at ${recordedFile}`);
-            return { videoPath: recordedFile, duration };
+            const videoPath = rawVideoPath ?? this.findLatestWebm(videoDir);
+            this.logger.log(`Recording complete — ${videoPath}`);
+            return { videoPath, segmentTimings };
         }
         catch (err) {
-            this.logger.error(`Automation failed for project ${projectId}: ${err.message}`, err.stack);
+            this.logger.error(`Recording failed: ${err.message}`);
             if (context)
                 await context.close().catch(() => { });
             if (browser)
@@ -79,57 +69,74 @@ let AutomationService = AutomationService_1 = class AutomationService {
             throw err;
         }
     }
-    async executeStep(page, step) {
-        this.logger.debug(`Executing step ${step.stepOrder}: ${step.actionType}`);
-        switch (step.actionType) {
-            case action_type_enum_1.ActionType.NAVIGATE:
-                await page.goto(step.value, { waitUntil: 'networkidle', timeout: 30_000 });
+    async executeAction(page, action) {
+        this.logger.debug(`Action ${action.actionOrder}: ${action.actionType}`);
+        switch (action.actionType) {
+            case project_action_entity_1.ActionType.NAVIGATE:
+                await page.goto(action.value ?? '', { waitUntil: 'domcontentloaded', timeout: 30_000 });
                 break;
-            case action_type_enum_1.ActionType.CLICK:
-                await page.waitForSelector(step.selector, { timeout: 15_000, state: 'visible' });
-                await page.click(step.selector);
+            case project_action_entity_1.ActionType.CLICK:
+                await page.waitForSelector(action.selector, { timeout: 15_000, state: 'visible' });
+                await page.click(action.selector);
                 break;
-            case action_type_enum_1.ActionType.FILL:
-                await page.waitForSelector(step.selector, { timeout: 15_000, state: 'visible' });
-                await page.fill(step.selector, step.value ?? '');
+            case project_action_entity_1.ActionType.FILL:
+                await page.waitForSelector(action.selector, { timeout: 15_000, state: 'visible' });
+                await page.fill(action.selector, action.value ?? '');
                 break;
-            case action_type_enum_1.ActionType.WAIT:
-                const ms = parseInt(step.value, 10);
-                if (!isNaN(ms) && ms > 0) {
-                    await page.waitForTimeout(ms);
+            case project_action_entity_1.ActionType.SELECT:
+                await page.waitForSelector(action.selector, { timeout: 15_000, state: 'visible' });
+                await page.selectOption(action.selector, action.value ?? '');
+                break;
+            case project_action_entity_1.ActionType.WAIT: {
+                const ms = parseInt(action.value ?? '1000', 10);
+                await page.waitForTimeout(isNaN(ms) ? 1000 : ms);
+                break;
+            }
+            case project_action_entity_1.ActionType.SCROLL:
+                if (action.selector) {
+                    await page.locator(action.selector).scrollIntoViewIfNeeded({ timeout: 10_000 });
                 }
-                else if (step.selector) {
-                    await page.waitForSelector(step.selector, { timeout: 30_000, state: 'visible' });
+                else {
+                    const parts = (action.value ?? '0,300').split(',').map(Number);
+                    const scrollY = parts[1] ?? parts[0] ?? 300;
+                    const scrollX = parts.length > 1 ? parts[0] : 0;
+                    await page.evaluate(({ x, y }) => window.scrollBy(x, y), { x: scrollX, y: scrollY });
                 }
                 break;
+            case project_action_entity_1.ActionType.HOVER:
+                await page.waitForSelector(action.selector, { timeout: 15_000, state: 'visible' });
+                await page.hover(action.selector);
+                break;
+            case project_action_entity_1.ActionType.PRESS:
+                await page.keyboard.press(action.value ?? 'Enter');
+                break;
+            case project_action_entity_1.ActionType.WAIT_FOR_SELECTOR: {
+                const state = action.value ?? 'visible';
+                await page.waitForSelector(action.selector, { state, timeout: 30_000 });
+                break;
+            }
             default:
-                this.logger.warn(`Unknown action type: ${step.actionType} — skipping`);
+                this.logger.warn(`Unknown action type: ${action.actionType} — skipping`);
         }
     }
-    ensureDir(dirPath) {
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
+    ensureDir(dir) {
+        if (!fs.existsSync(dir))
+            fs.mkdirSync(dir, { recursive: true });
     }
-    findLatestVideoFile(dir, projectId) {
+    findLatestWebm(dir) {
         const files = fs
             .readdirSync(dir)
             .filter((f) => f.endsWith('.webm'))
-            .map((f) => ({ name: f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
+            .map((f) => ({ f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
             .sort((a, b) => b.mtime - a.mtime);
-        if (!files.length) {
-            throw new Error(`No video file found in ${dir} after automation for project ${projectId}`);
-        }
-        return path.join(dir, files[0].name);
+        if (!files.length)
+            throw new Error(`No .webm file found in ${dir}`);
+        return path.join(dir, files[0].f);
     }
 };
 exports.AutomationService = AutomationService;
 exports.AutomationService = AutomationService = AutomationService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(automation_step_entity_1.AutomationStep)),
-    __param(1, (0, typeorm_1.InjectRepository)(project_entity_1.Project)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
-        config_1.ConfigService])
+    __metadata("design:paramtypes", [config_1.ConfigService])
 ], AutomationService);
 //# sourceMappingURL=automation.service.js.map

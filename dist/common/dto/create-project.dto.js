@@ -9,47 +9,54 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateProjectDto = exports.CreateScriptDto = exports.CreateAutomationStepDto = void 0;
+exports.CreateProjectDto = exports.CreateSegmentDto = exports.CreateActionDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
-const action_type_enum_1 = require("../enums/action-type.enum");
-class CreateAutomationStepDto {
+const project_action_entity_1 = require("../../database/entities/project-action.entity");
+class CreateActionDto {
 }
-exports.CreateAutomationStepDto = CreateAutomationStepDto;
+exports.CreateActionDto = CreateActionDto;
 __decorate([
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
-], CreateAutomationStepDto.prototype, "stepOrder", void 0);
+], CreateActionDto.prototype, "actionOrder", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(action_type_enum_1.ActionType),
+    (0, class_validator_1.IsEnum)(project_action_entity_1.ActionType),
     __metadata("design:type", String)
-], CreateAutomationStepDto.prototype, "actionType", void 0);
+], CreateActionDto.prototype, "actionType", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
-], CreateAutomationStepDto.prototype, "selector", void 0);
+], CreateActionDto.prototype, "selector", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateAutomationStepDto.prototype, "value", void 0);
-class CreateScriptDto {
+], CreateActionDto.prototype, "value", void 0);
+class CreateSegmentDto {
 }
-exports.CreateScriptDto = CreateScriptDto;
+exports.CreateSegmentDto = CreateSegmentDto;
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MinLength)(1),
     __metadata("design:type", String)
-], CreateScriptDto.prototype, "textContent", void 0);
+], CreateSegmentDto.prototype, "narratorText", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
-], CreateScriptDto.prototype, "voiceModel", void 0);
+], CreateSegmentDto.prototype, "voiceModel", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => CreateActionDto),
+    __metadata("design:type", Array)
+], CreateSegmentDto.prototype, "actions", void 0);
 class CreateProjectDto {
 }
 exports.CreateProjectDto = CreateProjectDto;
@@ -65,14 +72,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateProjectDto.prototype, "description", void 0);
 __decorate([
-    (0, class_validator_1.ValidateNested)(),
-    (0, class_transformer_1.Type)(() => CreateScriptDto),
-    __metadata("design:type", CreateScriptDto)
-], CreateProjectDto.prototype, "script", void 0);
-__decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
-    (0, class_transformer_1.Type)(() => CreateAutomationStepDto),
+    (0, class_transformer_1.Type)(() => CreateSegmentDto),
     __metadata("design:type", Array)
-], CreateProjectDto.prototype, "steps", void 0);
+], CreateProjectDto.prototype, "segments", void 0);
 //# sourceMappingURL=create-project.dto.js.map

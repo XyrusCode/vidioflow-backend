@@ -8,21 +8,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GeneratorModule = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
 const generator_service_1 = require("./generator.service");
 const automation_module_1 = require("../automation/automation.module");
 const tts_module_1 = require("../tts/tts.module");
-const project_entity_1 = require("../../database/entities/project.entity");
-const script_entity_1 = require("../../database/entities/script.entity");
+const projects_module_1 = require("../projects/projects.module");
 let GeneratorModule = class GeneratorModule {
 };
 exports.GeneratorModule = GeneratorModule;
 exports.GeneratorModule = GeneratorModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([project_entity_1.Project, script_entity_1.Script]),
             automation_module_1.AutomationModule,
             tts_module_1.TtsModule,
+            (0, common_1.forwardRef)(() => projects_module_1.ProjectsModule),
         ],
         providers: [generator_service_1.GeneratorService],
         exports: [generator_service_1.GeneratorService],

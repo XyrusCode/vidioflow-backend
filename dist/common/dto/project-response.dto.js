@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProjectResponseDto = exports.ScriptResponseDto = exports.AutomationStepResponseDto = void 0;
-class AutomationStepResponseDto {
+exports.ProjectResponseDto = exports.SegmentResponseDto = exports.ActionResponseDto = void 0;
+class ActionResponseDto {
 }
-exports.AutomationStepResponseDto = AutomationStepResponseDto;
-class ScriptResponseDto {
+exports.ActionResponseDto = ActionResponseDto;
+class SegmentResponseDto {
 }
-exports.ScriptResponseDto = ScriptResponseDto;
+exports.SegmentResponseDto = SegmentResponseDto;
 class ProjectResponseDto {
 }
 exports.ProjectResponseDto = ProjectResponseDto;

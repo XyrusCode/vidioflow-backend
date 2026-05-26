@@ -15,22 +15,24 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const fs = require("fs");
 const path = require("path");
+const child_process_1 = require("child_process");
 const msedge_tts_1 = require("msedge-tts");
 let TtsService = TtsService_1 = class TtsService {
     constructor(configService) {
         this.configService = configService;
         this.logger = new common_1.Logger(TtsService_1.name);
     }
-    async synthesize(textContent, voiceModel, projectId) {
+    async synthesiseSegment(narratorText, voiceModel, projectId, segmentId) {
         const audioDir = this.configService.get('paths.audio', '/tmp/audio');
         this.ensureDir(audioDir);
-        const audioPath = path.join(audioDir, `${projectId}.mp3`);
-        this.logger.log(`Synthesizing TTS for project ${projectId} with voice ${voiceModel}`);
-        await this.streamToFile(textContent, voiceModel, audioPath);
-        this.logger.log(`TTS audio written to ${audioPath}`);
-        return { audioPath };
+        const audioPath = path.join(audioDir, `${projectId}_${segmentId}.mp3`);
+        this.logger.log(`TTS segment ${segmentId} voice=${voiceModel}`);
+        await this.streamToFile(narratorText, voiceModel, audioPath);
+        const durationMs = await this.probeDuration(audioPath);
+        this.logger.log(`TTS done — ${audioPath} (${durationMs}ms)`);
+        return { audioPath, durationMs };
     }
-    async streamToFile(text, voice, outputPath) {
+    streamToFile(text, voice, outputPath) {
         return new Promise((resolve, reject) => {
             const tts = new msedge_tts_1.MsEdgeTTS();
             tts
@@ -38,23 +40,43 @@ let TtsService = TtsService_1 = class TtsService {
                 .then(() => {
                 const readable = tts.toStream(text);
                 const writeStream = fs.createWriteStream(outputPath);
-                readable.on('error', (err) => {
-                    writeStream.destroy();
-                    reject(new Error(`TTS stream error: ${err.message}`));
-                });
-                writeStream.on('error', (err) => {
-                    reject(new Error(`Audio write error: ${err.message}`));
-                });
+                readable.on('error', (e) => { writeStream.destroy(); reject(e); });
+                writeStream.on('error', reject);
                 writeStream.on('finish', resolve);
                 readable.pipe(writeStream);
             })
                 .catch(reject);
         });
     }
-    ensureDir(dirPath) {
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
+    probeDuration(filePath) {
+        return new Promise((resolve, reject) => {
+            const proc = (0, child_process_1.spawn)('ffprobe', [
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                filePath,
+            ]);
+            let out = '';
+            proc.stdout.on('data', (d) => (out += d.toString()));
+            proc.on('close', (code) => {
+                if (code !== 0) {
+                    reject(new Error('ffprobe failed'));
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(out);
+                    const sec = parseFloat(parsed.format?.duration ?? '0');
+                    resolve(Math.round(sec * 1000));
+                }
+                catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+    ensureDir(dir) {
+        if (!fs.existsSync(dir))
+            fs.mkdirSync(dir, { recursive: true });
     }
 };
 exports.TtsService = TtsService;

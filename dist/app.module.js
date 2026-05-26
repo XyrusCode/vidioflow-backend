@@ -11,9 +11,11 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const configuration_1 = require("./config/configuration");
+const user_entity_1 = require("./database/entities/user.entity");
 const project_entity_1 = require("./database/entities/project.entity");
-const automation_step_entity_1 = require("./database/entities/automation-step.entity");
-const script_entity_1 = require("./database/entities/script.entity");
+const segment_entity_1 = require("./database/entities/segment.entity");
+const project_action_entity_1 = require("./database/entities/project-action.entity");
+const auth_module_1 = require("./modules/auth/auth.module");
 const projects_module_1 = require("./modules/projects/projects.module");
 const automation_module_1 = require("./modules/automation/automation.module");
 const tts_module_1 = require("./modules/tts/tts.module");
@@ -27,24 +29,40 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 load: [configuration_1.default],
-                envFilePath: '.env',
+                envFilePath: ['.env.local', '.env'],
             }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
-                useFactory: (config) => ({
-                    type: 'postgres',
-                    host: config.get('database.host'),
-                    port: config.get('database.port'),
-                    username: config.get('database.username'),
-                    password: config.get('database.password'),
-                    database: config.get('database.database'),
-                    entities: [project_entity_1.Project, automation_step_entity_1.AutomationStep, script_entity_1.Script],
-                    synchronize: config.get('nodeEnv') !== 'production',
-                    logging: config.get('nodeEnv') === 'development',
-                    autoLoadEntities: true,
-                }),
+                useFactory: (config) => {
+                    const databaseUrl = config.get('database.url');
+                    const isProduction = config.get('nodeEnv') === 'production';
+                    if (databaseUrl) {
+                        return {
+                            type: 'postgres',
+                            url: databaseUrl,
+                            ssl: { rejectUnauthorized: false },
+                            entities: [user_entity_1.User, project_entity_1.Project, segment_entity_1.Segment, project_action_entity_1.ProjectAction],
+                            synchronize: true,
+                            logging: !isProduction,
+                            autoLoadEntities: true,
+                        };
+                    }
+                    return {
+                        type: 'postgres',
+                        host: config.get('database.host'),
+                        port: config.get('database.port'),
+                        username: config.get('database.username'),
+                        password: config.get('database.password'),
+                        database: config.get('database.database'),
+                        entities: [user_entity_1.User, project_entity_1.Project, segment_entity_1.Segment, project_action_entity_1.ProjectAction],
+                        synchronize: !isProduction,
+                        logging: !isProduction,
+                        autoLoadEntities: true,
+                    };
+                },
                 inject: [config_1.ConfigService],
             }),
+            auth_module_1.AuthModule,
             projects_module_1.ProjectsModule,
             automation_module_1.AutomationModule,
             tts_module_1.TtsModule,

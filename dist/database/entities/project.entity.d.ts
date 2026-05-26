@@ -1,14 +1,20 @@
-import { ProjectStatus } from '../../common/enums/project-status.enum';
-import { AutomationStep } from './automation-step.entity';
-import { Script } from './script.entity';
+import { User } from './user.entity';
+import { Segment } from './segment.entity';
+export declare enum ProjectStatus {
+    PENDING = "pending",
+    PROCESSING = "processing",
+    COMPLETED = "completed",
+    FAILED = "failed"
+}
 export declare class Project {
     id: string;
+    userId: string;
     name: string;
-    description: string;
+    description: string | null;
+    status: ProjectStatus;
+    finalVideoUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
-    status: ProjectStatus;
-    finalVideoUrl: string;
-    steps: AutomationStep[];
-    script: Script;
+    user: User;
+    segments: Segment[];
 }
