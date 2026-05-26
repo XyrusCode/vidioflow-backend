@@ -29,9 +29,19 @@ import { GeneratorModule } from './modules/generator/generator.module';
           return {
             type: 'postgres' as const,
             url: databaseUrl,
-            ssl: { rejectUnauthorized: false },
+            // Use extra.ssl instead of top-level ssl to avoid pg-connection-string
+            // double-applying SSL options when the URL already contains sslmode=.
+            extra: {
+              ssl: { rejectUnauthorized: false },
+            },
             entities: [User, Project, Segment, ProjectAction],
-            synchronize: true,
+            // Never synchronize in production — schema must be managed via migrations.
+            // synchronize:true in a serverless Lambda causes TypeORM to run DDL on
+            // every cold start, which exhausts Neon's connection limits and causes
+            // the "Unable to connect" retry loop that hangs the function for 30 s.
+            synchronize: !isProduction,
+            retryAttempts: 1,   // fail fast — don't hang the Lambda for 30 s
+            retryDelay: 500,
             logging: !isProduction,
             autoLoadEntities: true,
           };

@@ -40,9 +40,13 @@ exports.AppModule = AppModule = __decorate([
                         return {
                             type: 'postgres',
                             url: databaseUrl,
-                            ssl: { rejectUnauthorized: false },
+                            extra: {
+                                ssl: { rejectUnauthorized: false },
+                            },
                             entities: [user_entity_1.User, project_entity_1.Project, segment_entity_1.Segment, project_action_entity_1.ProjectAction],
-                            synchronize: true,
+                            synchronize: !isProduction,
+                            retryAttempts: 1,
+                            retryDelay: 500,
                             logging: !isProduction,
                             autoLoadEntities: true,
                         };
