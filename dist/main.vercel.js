@@ -5,6 +5,7 @@ const platform_express_1 = require("@nestjs/platform-express");
 const common_1 = require("@nestjs/common");
 const express = require("express");
 const app_module_1 = require("./app.module");
+const cors_config_1 = require("./config/cors.config");
 const server = express();
 let initialised = false;
 async function bootstrap() {
@@ -19,26 +20,7 @@ async function bootstrap() {
         transform: true,
         transformOptions: { enableImplicitConversion: true },
     }));
-    const allowedOrigins = process.env.CORS_ORIGINS
-        ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-        : ['http://localhost:5173', 'http://localhost:3001'];
-    app.enableCors({
-        origin: (origin, cb) => {
-            if (!origin)
-                return cb(null, true);
-            if (allowedOrigins.includes('*') ||
-                allowedOrigins.some((o) => origin === o) ||
-                origin.endsWith('.vercel.app')) {
-                cb(null, true);
-            }
-            else {
-                cb(new Error(`CORS: origin ${origin} not allowed`));
-            }
-        },
-        methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-        credentials: false,
-    });
+    app.enableCors((0, cors_config_1.buildCorsOptions)());
     await app.init();
     initialised = true;
     return server;
