@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && cp dist/main.vercel.js api/index.js",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".",
   "framework": null,
