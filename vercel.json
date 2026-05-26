@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build && cp dist/main.vercel.js api/index.js",
   "installCommand": "npm install",
+  "outputDirectory": ".",
   "framework": null,
   "rewrites": [
     { "source": "/:path*", "destination": "/api/index" }
