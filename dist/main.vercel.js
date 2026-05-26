@@ -26,8 +26,15 @@ async function bootstrap() {
     return server;
 }
 async function handler(req, res) {
-    const app = await bootstrap();
-    app(req, res);
+    try {
+        const app = await bootstrap();
+        app(req, res);
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.stack ?? err.message : String(err);
+        console.error('[Walker bootstrap error]', message);
+        res.status(500).json({ error: 'Bootstrap failed', detail: message });
+    }
 }
 exports.default = handler;
 module.exports = handler;

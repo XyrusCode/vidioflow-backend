@@ -41,8 +41,14 @@ async function bootstrap() {
 // module.exports is used directly so the CJS output is compatible with
 // both @vercel/node ncc bundling and the newer nodejs runtime.
 async function handler(req: Request, res: Response) {
-  const app = await bootstrap();
-  app(req, res);
+  try {
+    const app = await bootstrap();
+    app(req, res);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.stack ?? err.message : String(err);
+    console.error('[Walker bootstrap error]', message);
+    res.status(500).json({ error: 'Bootstrap failed', detail: message });
+  }
 }
 
 export default handler;
