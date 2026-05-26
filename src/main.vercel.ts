@@ -29,7 +29,27 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors({ origin: '*', methods: 'GET,POST,PATCH,DELETE,OPTIONS' });
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+    : ['http://localhost:5173', 'http://localhost:3001'];
+
+  app.enableCors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (
+        allowedOrigins.includes('*') ||
+        allowedOrigins.some((o) => origin === o) ||
+        origin.endsWith('.vercel.app')
+      ) {
+        cb(null, true);
+      } else {
+        cb(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: false,
+  });
 
   await app.init();
   initialised = true;
