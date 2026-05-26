@@ -44,7 +44,7 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectAction.prototype, "actionType", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 500, nullable: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 500, nullable: true }),
     __metadata("design:type", Object)
 ], ProjectAction.prototype, "selector", void 0);
 __decorate([

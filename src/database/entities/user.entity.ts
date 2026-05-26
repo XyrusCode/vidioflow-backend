@@ -18,7 +18,7 @@ export class User {
   @Column()
   passwordHash: string;
 
-  @Column({ nullable: true, length: 100 })
+  @Column({ type: 'varchar', nullable: true, length: 100 })
   name: string | null;
 
   @CreateDateColumn()

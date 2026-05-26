@@ -36,7 +36,9 @@ export class ProjectAction {
   actionType: ActionType;
 
   /** CSS selector / XPath — required for click, fill, select, hover, waitForSelector */
-  @Column({ length: 500, nullable: true })
+  // explicit type: 'varchar' required — reflect-metadata stores `string | null`
+  // union types as `Object` at runtime, which TypeORM can't map to a pg column.
+  @Column({ type: 'varchar', length: 500, nullable: true })
   selector: string | null;
 
   /**

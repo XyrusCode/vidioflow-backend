@@ -48,7 +48,7 @@ __decorate([
     __metadata("design:type", String)
 ], Project.prototype, "status", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 500, nullable: true }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 500, nullable: true }),
     __metadata("design:type", Object)
 ], Project.prototype, "finalVideoUrl", void 0);
 __decorate([

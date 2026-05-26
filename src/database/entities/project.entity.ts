@@ -39,7 +39,7 @@ export class Project {
   })
   status: ProjectStatus;
 
-  @Column({ length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   finalVideoUrl: string | null;
 
   @CreateDateColumn()
