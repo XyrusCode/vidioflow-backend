@@ -1,18 +1,15 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "dist/main.vercel.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["dist/**"]
-      }
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": null,
+  "functions": {
+    "dist/main.vercel.js": {
+      "runtime": "nodejs20.x",
+      "memory": 1024,
+      "maxDuration": 60
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/main.vercel.js"
-    }
+  },
+  "rewrites": [
+    { "source": "/:path*", "destination": "/dist/main.vercel.js" }
   ]
 }

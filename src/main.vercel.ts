@@ -36,8 +36,13 @@ async function bootstrap() {
   return server;
 }
 
-// Vercel calls this function for every request
-export default async function handler(req: Request, res: Response) {
+// Vercel calls this function for every request.
+// module.exports is used directly so the CJS output is compatible with
+// both @vercel/node ncc bundling and the newer nodejs runtime.
+async function handler(req: Request, res: Response) {
   const app = await bootstrap();
   app(req, res);
 }
+
+export default handler;
+module.exports = handler;
