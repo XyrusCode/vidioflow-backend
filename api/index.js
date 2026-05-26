@@ -1,13 +1,19 @@
-// Re-exports the compiled NestJS serverless handler from dist/.
-// Wrapped in try/catch so require() failures surface as JSON 500s
-// instead of the opaque FUNCTION_INVOCATION_FAILED HTML page.
-console.log('[api/index] loading, node', process.version, 'cwd:', process.cwd());
+// Loads the compiled NestJS serverless handler from dist/.
+// The path is constructed dynamically so ncc cannot hoist the require()
+// outside our try/catch (static analysis cannot resolve a computed string).
+// includeFiles:"dist/**" in vercel.json ensures these files are in the
+// Lambda package so Node.js can resolve them at runtime.
+const nodePath = require('path');
+const handlerPath = nodePath.join(__dirname, '..', 'dist', 'main.vercel');
+console.log('[api/index] loading, node', process.version, 'handler:', handlerPath);
+let loadedHandler;
 try {
-  module.exports = require('../dist/main.vercel');
-  console.log('[api/index] handler loaded OK, type:', typeof module.exports);
+  loadedHandler = require(handlerPath);
+  console.log('[api/index] handler loaded OK, type:', typeof loadedHandler);
 } catch (err) {
   console.error('[api/index] REQUIRE FAILED:', err && err.stack ? err.stack : String(err));
-  module.exports = (_req, res) => {
+  loadedHandler = (_req, res) => {
     res.status(500).json({ error: 'Module load failed', detail: String(err && err.message ? err.message : err) });
   };
 }
+module.exports = loadedHandler;
