@@ -19,18 +19,37 @@ import { GeneratorModule } from './modules/generator/generator.module';
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('database.host'),
-        port: config.get<number>('database.port'),
-        username: config.get<string>('database.username'),
-        password: config.get<string>('database.password'),
-        database: config.get<string>('database.database'),
-        entities: [Project, AutomationStep, Script],
-        synchronize: config.get<string>('nodeEnv') !== 'production',
-        logging: config.get<string>('nodeEnv') === 'development',
-        autoLoadEntities: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get<string>('database.url');
+        const isProduction = config.get<string>('nodeEnv') === 'production';
+
+        if (databaseUrl) {
+          // Neon / hosted Postgres: use connection URL with SSL
+          return {
+            type: 'postgres' as const,
+            url: databaseUrl,
+            ssl: { rejectUnauthorized: false },
+            entities: [Project, AutomationStep, Script],
+            synchronize: true, // auto-create tables on first deploy
+            logging: !isProduction,
+            autoLoadEntities: true,
+          };
+        }
+
+        // Local dev: use individual host/port/user/pass vars
+        return {
+          type: 'postgres' as const,
+          host: config.get<string>('database.host'),
+          port: config.get<number>('database.port'),
+          username: config.get<string>('database.username'),
+          password: config.get<string>('database.password'),
+          database: config.get<string>('database.database'),
+          entities: [Project, AutomationStep, Script],
+          synchronize: !isProduction,
+          logging: !isProduction,
+          autoLoadEntities: true,
+        };
+      },
       inject: [ConfigService],
     }),
     ProjectsModule,
