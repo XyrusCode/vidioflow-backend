@@ -13,7 +13,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AutomationService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
-const playwright_1 = require("playwright");
 const fs = require("fs");
 const path = require("path");
 const project_action_entity_1 = require("../../database/entities/project-action.entity");
@@ -28,7 +27,8 @@ let AutomationService = AutomationService_1 = class AutomationService {
         let browser = null;
         let context = null;
         try {
-            browser = await playwright_1.chromium.launch({
+            const { chromium } = await Promise.resolve().then(() => require('playwright'));
+            browser = await chromium.launch({
                 headless: true,
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
             });

@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { chromium, Browser, BrowserContext, Page } from 'playwright';
+// playwright is imported lazily inside record() so ncc does not inline it at
+// bundle initialisation time — which would crash the Lambda because browser
+// binaries are absent in Vercel's sandbox.
+import type { Browser, BrowserContext, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Segment } from '../../database/entities/segment.entity';
@@ -37,6 +40,7 @@ export class AutomationService {
     let context: BrowserContext | null = null;
 
     try {
+      const { chromium } = await import('playwright');
       browser = await chromium.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
