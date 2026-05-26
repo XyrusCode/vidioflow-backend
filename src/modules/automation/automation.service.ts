@@ -1,51 +1,40 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
-import { AutomationStep } from '../../database/entities/automation-step.entity';
-import { Project } from '../../database/entities/project.entity';
-import { ActionType } from '../../common/enums/action-type.enum';
+import { Segment } from '../../database/entities/segment.entity';
+import { ProjectAction, ActionType } from '../../database/entities/project-action.entity';
 
-export interface AutomationResult {
+export interface SegmentTiming {
+  segmentId: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface RecordResult {
   videoPath: string;
-  duration: number;
+  segmentTimings: SegmentTiming[];
 }
 
 @Injectable()
 export class AutomationService {
   private readonly logger = new Logger(AutomationService.name);
 
-  constructor(
-    @InjectRepository(AutomationStep)
-    private readonly stepRepo: Repository<AutomationStep>,
-    @InjectRepository(Project)
-    private readonly projectRepo: Repository<Project>,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
-  async executeProjectAutomation(projectId: string): Promise<AutomationResult> {
-    const project = await this.projectRepo.findOne({ where: { id: projectId } });
-    if (!project) {
-      throw new NotFoundException(`Project ${projectId} not found`);
-    }
-
-    const steps = await this.stepRepo.find({
-      where: { projectId },
-      order: { stepOrder: 'ASC' },
-    });
-
+  /**
+   * Records a single browser session containing all segments in order.
+   * Returns the path to the raw .webm file and per-segment timing boundaries.
+   * The timings are used downstream to cut + speed-adjust each segment to
+   * match its TTS narration duration (VideoGen-style sync).
+   */
+  async record(segments: Segment[]): Promise<RecordResult> {
     const videoDir = this.configService.get<string>('paths.video', '/tmp/videos');
     this.ensureDir(videoDir);
 
-    const videoPath = path.join(videoDir, `${projectId}.webm`);
-
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
-
-    const startTime = Date.now();
 
     try {
       browser = await chromium.launch({
@@ -54,89 +43,127 @@ export class AutomationService {
       });
 
       context = await browser.newContext({
-        viewport: { width: 1920, height: 1080 },
-        recordVideo: {
-          dir: videoDir!,
-          size: { width: 1920, height: 1080 },
-        },
+        viewport: { width: 1280, height: 720 },
+        recordVideo: { dir: videoDir, size: { width: 1280, height: 720 } },
       });
 
       const page = await context.newPage();
+      const sessionStart = Date.now();
+      const segmentTimings: SegmentTiming[] = [];
 
-      for (const step of steps) {
-        await this.executeStep(page, step);
+      const sortedSegments = [...segments].sort((a, b) => a.segmentOrder - b.segmentOrder);
+
+      for (const segment of sortedSegments) {
+        const segStart = Date.now() - sessionStart;
+        const sortedActions = [...(segment.actions ?? [])].sort(
+          (a, b) => a.actionOrder - b.actionOrder,
+        );
+
+        for (const action of sortedActions) {
+          await this.executeAction(page, action);
+        }
+
+        segmentTimings.push({
+          segmentId: segment.id,
+          startMs: segStart,
+          endMs: Date.now() - sessionStart,
+        });
       }
 
-      // Allow final frame to settle before closing
-      await page.waitForTimeout(500);
+      // Hold last frame
+      await page.waitForTimeout(800);
 
+      // Grab path before context closes
+      const rawVideoPath = await page.video()?.path();
       await context.close();
       await browser.close();
 
-      const duration = (Date.now() - startTime) / 1000;
-
-      // Playwright names the video file based on page order; find the latest .webm
-      const recordedFile = this.findLatestVideoFile(videoDir!, projectId);
-      this.logger.log(`Automation complete for project ${projectId} — video at ${recordedFile}`);
-
-      return { videoPath: recordedFile, duration };
+      const videoPath = rawVideoPath ?? this.findLatestWebm(videoDir);
+      this.logger.log(`Recording complete — ${videoPath}`);
+      return { videoPath, segmentTimings };
     } catch (err) {
-      this.logger.error(`Automation failed for project ${projectId}: ${err.message}`, err.stack);
+      this.logger.error(`Recording failed: ${(err as Error).message}`);
       if (context) await context.close().catch(() => {});
       if (browser) await browser.close().catch(() => {});
       throw err;
     }
   }
 
-  private async executeStep(page: Page, step: AutomationStep): Promise<void> {
-    this.logger.debug(`Executing step ${step.stepOrder}: ${step.actionType}`);
+  private async executeAction(page: Page, action: ProjectAction): Promise<void> {
+    this.logger.debug(`Action ${action.actionOrder}: ${action.actionType}`);
 
-    switch (step.actionType) {
+    switch (action.actionType) {
       case ActionType.NAVIGATE:
-        await page.goto(step.value, { waitUntil: 'networkidle', timeout: 30_000 });
+        await page.goto(action.value ?? '', { waitUntil: 'domcontentloaded', timeout: 30_000 });
         break;
 
       case ActionType.CLICK:
-        await page.waitForSelector(step.selector, { timeout: 15_000, state: 'visible' });
-        await page.click(step.selector);
+        await page.waitForSelector(action.selector!, { timeout: 15_000, state: 'visible' });
+        await page.click(action.selector!);
         break;
 
       case ActionType.FILL:
-        await page.waitForSelector(step.selector, { timeout: 15_000, state: 'visible' });
-        await page.fill(step.selector, step.value ?? '');
+        await page.waitForSelector(action.selector!, { timeout: 15_000, state: 'visible' });
+        await page.fill(action.selector!, action.value ?? '');
         break;
 
-      case ActionType.WAIT:
-        const ms = parseInt(step.value, 10);
-        if (!isNaN(ms) && ms > 0) {
-          await page.waitForTimeout(ms);
-        } else if (step.selector) {
-          await page.waitForSelector(step.selector, { timeout: 30_000, state: 'visible' });
+      case ActionType.SELECT:
+        await page.waitForSelector(action.selector!, { timeout: 15_000, state: 'visible' });
+        await page.selectOption(action.selector!, action.value ?? '');
+        break;
+
+      case ActionType.WAIT: {
+        const ms = parseInt(action.value ?? '1000', 10);
+        await page.waitForTimeout(isNaN(ms) ? 1000 : ms);
+        break;
+      }
+
+      case ActionType.SCROLL:
+        if (action.selector) {
+          await page.locator(action.selector).scrollIntoViewIfNeeded({ timeout: 10_000 });
+        } else {
+          const parts = (action.value ?? '0,300').split(',').map(Number);
+          const scrollY = parts[1] ?? parts[0] ?? 300;
+          const scrollX = parts.length > 1 ? parts[0] : 0;
+          await page.evaluate(
+            ({ x, y }) => window.scrollBy(x, y),
+            { x: scrollX, y: scrollY },
+          );
         }
         break;
 
+      case ActionType.HOVER:
+        await page.waitForSelector(action.selector!, { timeout: 15_000, state: 'visible' });
+        await page.hover(action.selector!);
+        break;
+
+      case ActionType.PRESS:
+        await page.keyboard.press(action.value ?? 'Enter');
+        break;
+
+      case ActionType.WAIT_FOR_SELECTOR: {
+        const state = (action.value as 'attached' | 'detached' | 'visible' | 'hidden') ?? 'visible';
+        await page.waitForSelector(action.selector!, { state, timeout: 30_000 });
+        break;
+      }
+
       default:
-        this.logger.warn(`Unknown action type: ${step.actionType} — skipping`);
+        this.logger.warn(`Unknown action type: ${action.actionType} — skipping`);
     }
   }
 
-  private ensureDir(dirPath: string): void {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
+  private ensureDir(dir: string): void {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
-  private findLatestVideoFile(dir: string, projectId: string): string {
+  private findLatestWebm(dir: string): string {
     const files = fs
       .readdirSync(dir)
       .filter((f) => f.endsWith('.webm'))
-      .map((f) => ({ name: f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
+      .map((f) => ({ f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
 
-    if (!files.length) {
-      throw new Error(`No video file found in ${dir} after automation for project ${projectId}`);
-    }
-
-    return path.join(dir, files[0].name);
+    if (!files.length) throw new Error(`No .webm file found in ${dir}`);
+    return path.join(dir, files[0].f);
   }
 }

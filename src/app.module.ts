@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
+import { User } from './database/entities/user.entity';
 import { Project } from './database/entities/project.entity';
-import { AutomationStep } from './database/entities/automation-step.entity';
-import { Script } from './database/entities/script.entity';
+import { Segment } from './database/entities/segment.entity';
+import { ProjectAction } from './database/entities/project-action.entity';
+import { AuthModule } from './modules/auth/auth.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { TtsModule } from './modules/tts/tts.module';
@@ -15,7 +17,7 @@ import { GeneratorModule } from './modules/generator/generator.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      envFilePath: '.env',
+      envFilePath: ['.env.local', '.env'],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -24,19 +26,17 @@ import { GeneratorModule } from './modules/generator/generator.module';
         const isProduction = config.get<string>('nodeEnv') === 'production';
 
         if (databaseUrl) {
-          // Neon / hosted Postgres: use connection URL with SSL
           return {
             type: 'postgres' as const,
             url: databaseUrl,
             ssl: { rejectUnauthorized: false },
-            entities: [Project, AutomationStep, Script],
-            synchronize: true, // auto-create tables on first deploy
+            entities: [User, Project, Segment, ProjectAction],
+            synchronize: true,
             logging: !isProduction,
             autoLoadEntities: true,
           };
         }
 
-        // Local dev: use individual host/port/user/pass vars
         return {
           type: 'postgres' as const,
           host: config.get<string>('database.host'),
@@ -44,7 +44,7 @@ import { GeneratorModule } from './modules/generator/generator.module';
           username: config.get<string>('database.username'),
           password: config.get<string>('database.password'),
           database: config.get<string>('database.database'),
-          entities: [Project, AutomationStep, Script],
+          entities: [User, Project, Segment, ProjectAction],
           synchronize: !isProduction,
           logging: !isProduction,
           autoLoadEntities: true,
@@ -52,6 +52,7 @@ import { GeneratorModule } from './modules/generator/generator.module';
       },
       inject: [ConfigService],
     }),
+    AuthModule,
     ProjectsModule,
     AutomationModule,
     TtsModule,

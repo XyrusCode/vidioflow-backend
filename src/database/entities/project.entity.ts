@@ -4,29 +4,33 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
   OneToMany,
-  OneToOne,
+  JoinColumn,
 } from 'typeorm';
-import { ProjectStatus } from '../../common/enums/project-status.enum';
-import { AutomationStep } from './automation-step.entity';
-import { Script } from './script.entity';
+import { User } from './user.entity';
+import { Segment } from './segment.entity';
+
+export enum ProjectStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
 
 @Entity('projects')
 export class Project {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'uuid' })
+  userId: string;
+
+  @Column({ length: 255 })
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  description: string | null;
 
   @Column({
     type: 'enum',
@@ -35,18 +39,22 @@ export class Project {
   })
   status: ProjectStatus;
 
-  @Column({ name: 'final_video_url', type: 'varchar', length: 500, nullable: true })
-  finalVideoUrl: string;
+  @Column({ length: 500, nullable: true })
+  finalVideoUrl: string | null;
 
-  @OneToMany(() => AutomationStep, (step) => step.project, {
-    cascade: true,
-    eager: false,
-  })
-  steps: AutomationStep[];
+  @CreateDateColumn()
+  createdAt: Date;
 
-  @OneToOne(() => Script, (script) => script.project, {
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @OneToMany(() => Segment, (segment) => segment.project, {
     cascade: true,
-    eager: false,
+    eager: true,
   })
-  script: Script;
+  segments: Segment[];
 }

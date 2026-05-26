@@ -1,21 +1,22 @@
 import {
   IsString,
-  IsNotEmpty,
   IsOptional,
   IsArray,
-  ValidateNested,
   IsEnum,
   IsInt,
   Min,
+  ValidateNested,
   MaxLength,
+  IsNotEmpty,
+  MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ActionType } from '../enums/action-type.enum';
+import { ActionType } from '../../database/entities/project-action.entity';
 
-export class CreateAutomationStepDto {
+export class CreateActionDto {
   @IsInt()
-  @Min(1)
-  stepOrder: number;
+  @Min(0)
+  actionOrder: number;
 
   @IsEnum(ActionType)
   actionType: ActionType;
@@ -30,15 +31,21 @@ export class CreateAutomationStepDto {
   value?: string;
 }
 
-export class CreateScriptDto {
+export class CreateSegmentDto {
   @IsString()
   @IsNotEmpty()
-  textContent: string;
+  @MinLength(1)
+  narratorText: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
   voiceModel?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateActionDto)
+  actions: CreateActionDto[];
 }
 
 export class CreateProjectDto {
@@ -51,12 +58,8 @@ export class CreateProjectDto {
   @IsString()
   description?: string;
 
-  @ValidateNested()
-  @Type(() => CreateScriptDto)
-  script: CreateScriptDto;
-
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateAutomationStepDto)
-  steps: CreateAutomationStepDto[];
+  @Type(() => CreateSegmentDto)
+  segments: CreateSegmentDto[];
 }
