@@ -16,4 +16,8 @@ export default () => ({
     output: process.env.FINAL_OUTPUT_DIR || '/tmp/output',
   },
   ffmpeg: process.env.FFMPEG_PATH || 'ffmpeg',
+  // Password-reset email
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  resendApiKey: process.env.RESEND_API_KEY || undefined,
+  emailFrom: process.env.EMAIL_FROM || 'Walker <noreply@walker.studio>',
 });

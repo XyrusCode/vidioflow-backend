@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './config/cors.config';
 
@@ -8,14 +8,8 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+  // Validation is handled per-route via ZodValidationPipe.
+  // No global ValidationPipe — all body validation is explicit and Zod-driven.
 
   app.enableCors(buildCorsOptions());
 

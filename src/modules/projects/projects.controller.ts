@@ -16,6 +16,8 @@ import { ProjectsService } from './projects.service';
 import { GeneratorService } from '../generator/generator.service';
 import { CreateProjectDto } from '../../common/dto/create-project.dto';
 import { ProjectResponseDto } from '../../common/dto/project-response.dto';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { CreateProjectSchema } from '../../common/schemas/project.schemas';
 
 interface AuthRequest {
   user: { id: string; email: string };
@@ -39,7 +41,7 @@ export class ProjectsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   createProject(
-    @Body() dto: CreateProjectDto,
+    @Body(new ZodValidationPipe(CreateProjectSchema)) dto: CreateProjectDto,
     @Request() req: AuthRequest,
   ): Promise<ProjectResponseDto> {
     return this.projectsService.create(dto, req.user.id);

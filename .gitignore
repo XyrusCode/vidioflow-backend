@@ -13,6 +13,9 @@ npm-debug.log*
 # Temp media files
 /tmp/
 
+# Build output
+dist/
+
 # TypeScript cache
 *.tsbuildinfo
 

@@ -1,2 +1,0 @@
-import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
-export declare function buildCorsOptions(): CorsOptions;
